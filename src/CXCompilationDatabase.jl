@@ -1,3 +1,5 @@
+## CompilationDatabase functions
+
 """
 A compilation database holds all information used to compile files in a project.
 For each file in the database, it can be queried for the working directory or the command
@@ -13,6 +15,7 @@ Contains the results of a search in the compilation database.
 When searching for the compile command for a file, the compilation db can return several
 commands, as the file may have been compiled with different options in different places of
 the project. This choice of compile commands is wrapped in this opaque data structure.
+
 It must be freed by [`clang_CompileCommands_dispose`](@ref).
 """
 const CXCompileCommands = Ptr{Cvoid}
@@ -54,6 +57,7 @@ end
 """
     clang_CompilationDatabase_getCompileCommands(db, CompleteFileName)
 Find the compile commands used for a file.
+
 The compile commands must be freed by [`clang_CompileCommands_dispose`](@ref).
 """
 function clang_CompilationDatabase_getCompileCommands(db, CompleteFileName)
@@ -87,6 +91,7 @@ end
 """
     clang_CompileCommands_getCommand(cmds, i)
 Get the `i`-th CompileCommand for a file.
+
 !!! note
 `0 <= i < clang_CompileCommands_getSize(cmds)`
 """
@@ -96,7 +101,7 @@ end
 
 """
     clang_CompileCommand_getDirectory(cmd)
-Get the working directory where the CompileCommand was executed from.
+Get the working directory where the CompileCommand `cmd` was executed from.
 """
 function clang_CompileCommand_getDirectory(cmd)
     ccall((:clang_CompileCommand_getDirectory, libclang), CXString, (CXCompileCommand,), cmd)
@@ -121,6 +126,7 @@ end
 """
     clang_CompileCommand_getArg(cmd, i)
 Get the `i`-th argument value in the compiler invocations.
+
 Invariant:
 - argument 0 is the compiler executable
 """

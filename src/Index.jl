@@ -887,24 +887,46 @@ Describes the kind of error that occurred (if any) in a call to [`clang_saveTran
 end
 
 """
+    clang_saveTranslationUnit(TU, FileName, options) -> Cint
+Saves a translation unit into a serialized representation of that translation unit on disk.
 
+Any translation unit that was parsed without error can be saved into a file. The translation
+unit can then be deserialized into a new [`CXTranslationUnit`](@ref) with [`clang_createTranslationUnit`](@ref)
+or, if it is an incomplete translation unit that corresponds to a header, used as a precompiled
+header when parsing other translation units.
+
+## Arguments
+- `TU`: The translation unit to save.
+- `FileName`: The file to which the translation unit will be saved.
+- `options`: A bitmask of options that affects how the translation unit is saved. This should be a bitwise OR of the `CXSaveTranslationUnit_XXX` flags.
+
+## Returns
+A value that will match one of the enumerators of the [`CXSaveError`](@ref) enumeration.
+Zero ([`CXSaveError_None`](@ref)) indicates that the translation unit was saved successfully, while a
+non-zero value indicates that a problem occurred.
 """
 function clang_saveTranslationUnit(TU, FileName, options)
     ccall((:clang_saveTranslationUnit, libclang), Cint, (CXTranslationUnit, Cstring, UInt32), TU, FileName, options)
 end
 
 """
+    clang_suspendTranslationUnit(TU) -> UInt32
+Suspend a translation unit in order to free memory associated with it.
 
+A suspended translation unit uses significantly less memory but on the other side does not
+support any other calls than [`clang_reparseTranslationUnit`](@ref) to resume it or
+[`clang_disposeTranslationUnit`](@ref) to dispose it completely.
 """
-function clang_suspendTranslationUnit(arg1)
-    ccall((:clang_suspendTranslationUnit, libclang), UInt32, (CXTranslationUnit,), arg1)
+function clang_suspendTranslationUnit(TU)
+    ccall((:clang_suspendTranslationUnit, libclang), UInt32, (CXTranslationUnit,), TU)
 end
 
 """
-
+    clang_disposeTranslationUnit(TU) -> Cvoid
+Destroy the specified CXTranslationUnit object.
 """
-function clang_disposeTranslationUnit(arg1)
-    ccall((:clang_disposeTranslationUnit, libclang), Cvoid, (CXTranslationUnit,), arg1)
+function clang_disposeTranslationUnit(TU)
+    ccall((:clang_disposeTranslationUnit, libclang), Cvoid, (CXTranslationUnit,), TU)
 end
 
 """
@@ -912,20 +934,50 @@ Flags that control the reparsing of translation units.
 
 The enumerators in this enumeration type are meant to be bitwise ORed together to specify
 which options should be used when reparsing the translation unit.
+- `CXReparse_None`: Used to indicate that no special reparsing options are needed.
 """
 @cenum CXReparse_Flags::UInt32 begin
     CXReparse_None = 0
 end
 
 """
+    clang_defaultReparseOptions(TU) -> UInt32
+Returns the set of flags that is suitable for reparsing a translation unit.
 
+The set of flags returned provide options for [`clang_reparseTranslationUnit`](@ref) by default.
+The returned flag set contains an unspecified set of optimizations geared toward common uses
+of reparsing. The set of optimizations enabled may change from one version to the next.
 """
 function clang_defaultReparseOptions(TU)
     ccall((:clang_defaultReparseOptions, libclang), UInt32, (CXTranslationUnit,), TU)
 end
 
 """
+    clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files, options) -> Cint
+Reparse the source files that produced this translation unit.
 
+This routine can be used to re-parse the source files that originally created the given
+translation unit, for example because those source files have changed (either on disk or as
+passed via `unsaved_files`). The source code will be reparsed with the same command-line
+options as it was originally parsed.
+
+Reparsing a translation unit invalidates all cursors and source locations that refer into
+that translation unit. This makes reparsing a translation unit semantically equivalent to
+destroying the translation unit and then creating a new translation unit with the same
+command-line arguments. However, it may be more efficient to reparse a translation unit
+using this routine.
+
+## Arguments
+- `TU`: The translation unit whose contents will be re-parsed. The translation unit must originally have been built with [`clang_createTranslationUnitFromSourceFile`](@ref).
+- `num_unsaved_files`: The number of unsaved file entries in `unsaved_files`.
+- `unsaved_files`: The files that have not yet been saved to disk but may be required for parsing, including the contents of those files.  The contents and name of these files (as specified by [`CXUnsavedFile`](@ref)) are copied when necessary, so the client only needs to guarantee their validity until the call to this function returns.
+- `options`: A bitset of options composed of the flags in [`CXReparse_Flags`](@ref). The function [`clang_defaultReparseOptions`](@ref) produces a default set of options recommended for most uses, based on the translation unit.
+
+## Returns
+0 if the sources could be reparsed.  A non-zero error code will be returned if reparsing was
+impossible, such that the translation unit is invalid. In such cases, the only valid call
+for `TU` is `clang_disposeTranslationUnit(TU)`.  The error codes returned by this routine
+are described by the [`CXErrorCode`](@ref) enum.
 """
 function clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files, options)
     ccall((:clang_reparseTranslationUnit, libclang), Cint, (CXTranslationUnit, UInt32, Ptr{CXUnsavedFile}, UInt32), TU, num_unsaved_files, unsaved_files, options)
@@ -956,7 +1008,7 @@ Categorizes how memory is being used by a translation unit.
 end
 
 """
-    clang_getTUResourceUsageName(kind)
+    clang_getTUResourceUsageName(kind) -> Cstring
 Returns the human-readable null-terminated C string that represents the name of the memory category.  This string should never be freed.
 """
 function clang_getTUResourceUsageName(kind)
@@ -978,42 +1030,54 @@ struct CXTUResourceUsage
 end
 
 """
-
+    clang_getCXTUResourceUsage(TU) -> CXTUResourceUsage
+Return the memory usage of a translation unit.  This object should be released with
+[`clang_disposeCXTUResourceUsage`](@ref).
 """
 function clang_getCXTUResourceUsage(TU)
     ccall((:clang_getCXTUResourceUsage, libclang), CXTUResourceUsage, (CXTranslationUnit,), TU)
 end
 
 """
-
+    clang_disposeCXTUResourceUsage(usage) -> Cvoid
 """
 function clang_disposeCXTUResourceUsage(usage)
     ccall((:clang_disposeCXTUResourceUsage, libclang), Cvoid, (CXTUResourceUsage,), usage)
 end
 
 """
+    clang_getTranslationUnitTargetInfo(CTUnit) -> CXTargetInfo
+Get target information for this translation unit.
 
+The [`CXTargetInfo`](@ref) object cannot outlive the [`CXTranslationUnit`](@ref) object.
 """
 function clang_getTranslationUnitTargetInfo(CTUnit)
     ccall((:clang_getTranslationUnitTargetInfo, libclang), CXTargetInfo, (CXTranslationUnit,), CTUnit)
 end
 
 """
-
+    clang_TargetInfo_dispose(Info) -> Cvoid
+Destroy the CXTargetInfo object.
 """
 function clang_TargetInfo_dispose(Info)
     ccall((:clang_TargetInfo_dispose, libclang), Cvoid, (CXTargetInfo,), Info)
 end
 
 """
+    clang_TargetInfo_getTriple(Info) -> CXString
+Get the normalized target triple as a string.
 
+Returns the empty string in case of any error.
 """
 function clang_TargetInfo_getTriple(Info)
     ccall((:clang_TargetInfo_getTriple, libclang), CXString, (CXTargetInfo,), Info)
 end
 
 """
+    clang_TargetInfo_getPointerWidth(Info) -> Cint
+Get the pointer width of the target in bits.
 
+Returns -1 in case of error.
 """
 function clang_TargetInfo_getPointerWidth(Info)
     ccall((:clang_TargetInfo_getPointerWidth, libclang), Cint, (CXTargetInfo,), Info)
@@ -1286,7 +1350,7 @@ and retrieving cursors for any child nodes of a particular cursor.
 
 Cursors can be produced in two specific ways. [`clang_getTranslationUnitCursor`](@ref) produces
 a cursor for a translation unit, from which one can use [`clang_visitChildren`](@ref) to explore
-the rest of the translation unit. clang_getCursor() maps from a physical source location to the
+the rest of the translation unit. [`clang_getCursor`](@ref) maps from a physical source location to the
 entity that resides at that location, allowing one to map from the source code into the AST.
 """
 struct CXCursor
@@ -1298,126 +1362,161 @@ end
 ## Cursor manipulations
 
 """
-
+    clang_getNullCursor() -> CXCursor
+Retrieve the NULL cursor, which represents no entity.
 """
 function clang_getNullCursor()
     ccall((:clang_getNullCursor, libclang), CXCursor, ())
 end
 
 """
+    clang_getTranslationUnitCursor(TU) -> CXCursor
+Retrieve the cursor that represents the given translation unit.
 
+The translation unit cursor can be used to start traversing the various declarations within
+the given translation unit.
 """
-function clang_getTranslationUnitCursor(arg1)
-    ccall((:clang_getTranslationUnitCursor, libclang), CXCursor, (CXTranslationUnit,), arg1)
+function clang_getTranslationUnitCursor(TU)
+    ccall((:clang_getTranslationUnitCursor, libclang), CXCursor, (CXTranslationUnit,), TU)
 end
 
 """
-
+    clang_equalCursors(cursor1, cursor2) -> UInt32
+Determine whether two cursors are equivalent.
 """
-function clang_equalCursors(arg1, arg2)
-    ccall((:clang_equalCursors, libclang), UInt32, (CXCursor, CXCursor), arg1, arg2)
+function clang_equalCursors(cursor1, cursor2)
+    ccall((:clang_equalCursors, libclang), UInt32, (CXCursor, CXCursor), cursor1, cursor2)
 end
 
 """
-
+    clang_Cursor_isNull(cursor) -> Cint
+Returns non-zero if `cursor` is null.
 """
 function clang_Cursor_isNull(cursor)
     ccall((:clang_Cursor_isNull, libclang), Cint, (CXCursor,), cursor)
 end
 
 """
-
+    clang_hashCursor(cursor) -> UInt32
+Compute a hash value for the given cursor.
 """
-function clang_hashCursor(arg1)
-    ccall((:clang_hashCursor, libclang), UInt32, (CXCursor,), arg1)
+function clang_hashCursor(cursor)
+    ccall((:clang_hashCursor, libclang), UInt32, (CXCursor,), cursor)
 end
 
 """
-
+    clang_getCursorKind(cursor) -> CXCursorKind
+Retrieve the kind of the given cursor.
 """
-function clang_getCursorKind(arg1)
-    ccall((:clang_getCursorKind, libclang), CXCursorKind, (CXCursor,), arg1)
+function clang_getCursorKind(cursor)
+    ccall((:clang_getCursorKind, libclang), CXCursorKind, (CXCursor,), cursor)
 end
 
 """
-
+    clang_isDeclaration(cursor_kind) -> UInt32
+Determine whether the given cursor kind represents a declaration.
 """
-function clang_isDeclaration(arg1)
-    ccall((:clang_isDeclaration, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isDeclaration(cursor_kind)
+    ccall((:clang_isDeclaration, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
+    clang_isInvalidDeclaration(cursor) -> UInt32
+Determine whether the given declaration is invalid.
 
+A declaration is invalid if it could not be parsed successfully.
+
+## Returns
+non-zero if the cursor represents a declaration and it is invalid, otherwise NULL.
 """
-function clang_isInvalidDeclaration(arg1)
-    ccall((:clang_isInvalidDeclaration, libclang), UInt32, (CXCursor,), arg1)
+function clang_isInvalidDeclaration(cursor)
+    ccall((:clang_isInvalidDeclaration, libclang), UInt32, (CXCursor,), cursor)
 end
 
 """
+    clang_isReference(cursor_kind) -> UInt32
+Determine whether the given cursor kind represents a simple reference.
 
+Note that other kinds of cursors (such as expressions) can also refer to other cursors.
+Use [`clang_getCursorReferenced`](@ref) to determine whether a particular cursor refers to
+another entity.
 """
-function clang_isReference(arg1)
-    ccall((:clang_isReference, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isReference(cursor_kind)
+    ccall((:clang_isReference, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
-
+    clang_isExpression(cursor_kind) -> UInt32
+Determine whether the given cursor kind represents an expression.
 """
-function clang_isExpression(arg1)
-    ccall((:clang_isExpression, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isExpression(cursor_kind)
+    ccall((:clang_isExpression, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
-
+    clang_isStatement(cursor_kind) -> UInt32
+Determine whether the given cursor kind represents a statement.
 """
-function clang_isStatement(arg1)
-    ccall((:clang_isStatement, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isStatement(cursor_kind)
+    ccall((:clang_isStatement, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
-
+    clang_isAttribute(cursor_kind) -> UInt32
+Determine whether the given cursor kind represents an attribute.
 """
-function clang_isAttribute(arg1)
-    ccall((:clang_isAttribute, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isAttribute(cursor_kind)
+    ccall((:clang_isAttribute, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
-
+    clang_Cursor_hasAttrs(C) -> UInt32
+Determine whether the given cursor has any attributes.
 """
 function clang_Cursor_hasAttrs(C)
     ccall((:clang_Cursor_hasAttrs, libclang), UInt32, (CXCursor,), C)
 end
 
 """
-
+    clang_isInvalid(cursor_kind) -> UInt32
+Determine whether the given cursor kind represents an invalid cursor.
 """
-function clang_isInvalid(arg1)
-    ccall((:clang_isInvalid, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isInvalid(cursor_kind)
+    ccall((:clang_isInvalid, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
-
+    clang_isTranslationUnit(cursor_kind) -> UInt32
+Determine whether the given cursor kind represents a translation unit.
 """
-function clang_isTranslationUnit(arg1)
-    ccall((:clang_isTranslationUnit, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isTranslationUnit(cursor_kind)
+    ccall((:clang_isTranslationUnit, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
-
+    clang_isPreprocessing(cursor_kind) -> UInt32
+Determine whether the given cursor represents a preprocessing element, such as a preprocessor
+directive or macro instantiation.
 """
-function clang_isPreprocessing(arg1)
-    ccall((:clang_isPreprocessing, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isPreprocessing(cursor_kind)
+    ccall((:clang_isPreprocessing, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
-
+    clang_isUnexposed(cursor_kind) -> UInt32
+Determine whether the given cursor represents a currently unexposed piece of the AST (e.g., [`CXCursor_UnexposedStmt`](@ref)).
 """
-function clang_isUnexposed(arg1)
-    ccall((:clang_isUnexposed, libclang), UInt32, (CXCursorKind,), arg1)
+function clang_isUnexposed(cursor_kind)
+    ccall((:clang_isUnexposed, libclang), UInt32, (CXCursorKind,), cursor_kind)
 end
 
 """
 Describe the linkage of the entity referred to by a cursor.
+- `CXLinkage_Invalid`: This value indicates that no linkage information is available for a provided CXCursor.
+- `CXLinkage_NoLinkage`: This is the linkage for variables, parameters, and so on that have automatic storage.  This covers normal (non-extern) local variables.
+- `CXLinkage_Internal`: This is the linkage for static variables and static functions.
+- `CXLinkage_UniqueExternal`: This is the linkage for entities with external linkage that live in C++ anonymous namespaces.
+- `CXLinkage_External`: This is the linkage for entities with true, external linkage.
 """
 @cenum CXLinkageKind::UInt32 begin
     CXLinkage_Invalid = 0
@@ -1428,7 +1527,7 @@ Describe the linkage of the entity referred to by a cursor.
 end
 
 """
-    clang_getCursorLinkage(cursor)
+    clang_getCursorLinkage(cursor) -> CXLinkageKind
 Determine the linkage of the entity referred to by a given cursor.
 """
 function clang_getCursorLinkage(cursor)
@@ -1443,22 +1542,31 @@ end
 end
 
 """
-    clang_getCursorVisibility(cursor)
+    clang_getCursorVisibility(cursor) -> CXVisibilityKind
 Describe the visibility of the entity referred to by a cursor.
 
 This returns the default visibility if not explicitly specified by a visibility attribute.
 The default visibility may be changed by commandline arguments.
 
-`cursor` is the cursor to query. Returns the visibility of the cursor.
+## Arguments
+- `cursor`: The cursor to query.
+
+## Returns
+The visibility of the cursor.
 """
-function clang_getCursorVisibility(cursor)
+function clang_getCursorVisibility(cursor) -> CXVisibilityKind
     ccall((:clang_getCursorVisibility, libclang), CXVisibilityKind, (CXCursor,), cursor)
 end
 
 """
-    clang_getCursorAvailability(cursor)
+    clang_getCursorAvailability(cursor) -> CXAvailabilityKind
 Determine the availability of the entity that this cursor refers to, taking the current target platform into account.
-`cursor` is the cursor to query. Returns the visibility of the cursor.
+
+## Arguments
+- `cursor`: The cursor to query.
+
+## Returns
+The visibility of the cursor.
 """
 function clang_getCursorAvailability(cursor)
     ccall((:clang_getCursorAvailability, libclang), CXAvailabilityKind, (CXCursor,), cursor)
@@ -1469,23 +1577,43 @@ Describes the availability of a given entity on a particular platform, e.g., a p
 class might only be available on Mac OS 10.7 or newer.
 """
 struct CXPlatformAvailability
-    Platform::CXString
-    Introduced::CXVersion
-    Deprecated::CXVersion
-    Obsoleted::CXVersion
-    Unavailable::Cint
-    Message::CXString
+    Platform::CXString      # A string that describes the platform for which this structure provides availability information. Possible values are "ios" or "macos".
+    Introduced::CXVersion   # The version number in which this entity was introduced.
+    Deprecated::CXVersion   # The version number in which this entity was deprecated (but is still available).
+    Obsoleted::CXVersion    # The version number in which this entity was obsoleted, and therefore is no longer available.
+    Unavailable::Cint       # Whether the entity is unconditionally unavailable on this platform.
+    Message::CXString       # An optional message to provide to a user of this API, e.g., to suggest replacement APIs.
 end
 
 """
+    clang_getCursorPlatformAvailability(cursor, always_deprecated, deprecated_message, always_unavailable, unavailable_message, availability, availability_size) -> Cint
+Determine the availability of the entity that this cursor refers to on any platforms for
+which availability information is known.
 
+## Arguments
+- `cursor`: The cursor to query.
+- `always_deprecated`: If non-NULL, will be set to indicate whether the entity is deprecated on all platforms.
+- `deprecated_message`: If non-NULL, will be set to the message text provided along with the unconditional deprecation of this entity. The client is responsible for deallocating this string.
+- `always_unavailable`: If non-NULL, will be set to indicate whether the entity is unavailable on all platforms.
+- `unavailable_message`: If non-NULL, will be set to the message text provided along with the unconditional unavailability of this entity. The client is responsible for deallocating this string.
+- `availability`: If non-NULL, an array of [`CXPlatformAvailability`](@ref) instances that will be populated with platform availability information, up to either the number of platforms for which availability information is available (as returned by this function) or `availability_size`, whichever is smaller.
+- `availability_size`: The number of elements available in the `availability` array.
+
+## Returns
+The number of platforms (N) for which availability information is available (which is
+unrelated to `availability_size`).
+
+Note that the client is responsible for calling [`clang_disposeCXPlatformAvailability`](@ref)
+to free each of the platform-availability structures returned. There are
+`min(N, `availability_size`)` such structures.
 """
 function clang_getCursorPlatformAvailability(cursor, always_deprecated, deprecated_message, always_unavailable, unavailable_message, availability, availability_size)
     ccall((:clang_getCursorPlatformAvailability, libclang), Cint, (CXCursor, Ptr{Cint}, Ptr{CXString}, Ptr{Cint}, Ptr{CXString}, Ptr{CXPlatformAvailability}, Cint), cursor, always_deprecated, deprecated_message, always_unavailable, unavailable_message, availability, availability_size)
 end
 
 """
-
+    clang_disposeCXPlatformAvailability(availability) -> Cvoid
+Free the memory associated with a [`CXPlatformAvailability`](@ref) structure.
 """
 function clang_disposeCXPlatformAvailability(availability)
     ccall((:clang_disposeCXPlatformAvailability, libclang), Cvoid, (Ptr{CXPlatformAvailability},), availability)
@@ -1502,7 +1630,7 @@ Describe the "language" of the entity referred to by a cursor.
 end
 
 """
-    clang_getCursorLanguage(cursor)
+    clang_getCursorLanguage(cursor) -> CXLanguageKind
 Determine the "language" of the entity referred to by a given cursor.
 """
 function clang_getCursorLanguage(cursor)
@@ -1519,7 +1647,7 @@ Describe the "thread-local storage (TLS) kind" of the declaration referred to by
 end
 
 """
-    clang_getCursorTLSKind(cursor)
+    clang_getCursorTLSKind(cursor) -> CXTLSKind
 Determine the "thread-local storage (TLS) kind" of the declaration referred to by a cursor.
 """
 function clang_getCursorTLSKind(cursor)
@@ -1527,7 +1655,7 @@ function clang_getCursorTLSKind(cursor)
 end
 
 """
-    clang_Cursor_getTranslationUnit(cursor)
+    clang_Cursor_getTranslationUnit(cursor) -> CXTranslationUnit
 Returns the translation unit that a cursor originated from.
 """
 function clang_Cursor_getTranslationUnit(cursor)
@@ -1540,95 +1668,219 @@ A fast container representing a set of CXCursors.
 const CXCursorSet = Ptr{Cvoid}
 
 """
-
+    clang_createCXCursorSet() -> CXCursorSet
+Creates an empty CXCursorSet.
 """
 function clang_createCXCursorSet()
     ccall((:clang_createCXCursorSet, libclang), CXCursorSet, ())
 end
 
 """
-
+    clang_disposeCXCursorSet(cset) -> Cvoid
+Disposes a CXCursorSet and releases its associated memory.
 """
 function clang_disposeCXCursorSet(cset)
     ccall((:clang_disposeCXCursorSet, libclang), Cvoid, (CXCursorSet,), cset)
 end
 
 """
+    clang_CXCursorSet_contains(cset, cursor) -> UInt32
+Queries a [`CXCursorSet`](@ref) to see if it contains a specific [`CXCursor`](@ref).
 
+## Returns
+non-zero if the set contains the specified cursor.
 """
 function clang_CXCursorSet_contains(cset, cursor)
     ccall((:clang_CXCursorSet_contains, libclang), UInt32, (CXCursorSet, CXCursor), cset, cursor)
 end
 
 """
+    clang_CXCursorSet_insert(cset, cursor) -> UInt32
+Inserts a [`CXCursor`](@ref) into a [`CXCursorSet`](@ref).
 
+## Returns
+zero if the CXCursor was already in the set, and non-zero otherwise.
 """
 function clang_CXCursorSet_insert(cset, cursor)
     ccall((:clang_CXCursorSet_insert, libclang), UInt32, (CXCursorSet, CXCursor), cset, cursor)
 end
 
 """
+    clang_getCursorSemanticParent(cursor) -> CXCursor
+Determine the semantic parent of the given cursor.
 
+The semantic parent of a cursor is the cursor that semantically contains the given `cursor`.
+For many declarations, the lexical and semantic parents are equivalent (the lexical parent
+is returned by [`clang_getCursorLexicalParent`](@ref)). They diverge when declarations or
+definitions are provided out-of-line. For example:
+```c
+class C {
+    void f();
+};
+
+void C::f() { }
+```
+
+In the out-of-line definition of `C::f`, the semantic parent is the class `C`, of which this
+function is a member. The lexical parent is the place where the declaration actually occurs
+in the source code; in this case, the definition occurs in the translation unit. In general,
+the lexical parent for a given entity can change without affecting the semantics of the
+program, and the lexical parent of different declarations of the same entity may be different.
+Changing the semantic parent of a declaration, on the other hand, can have a major impact on
+semantics, and redeclarations of a particular entity should all have the same semantic context.
+
+In the example above, both declarations of `C::f` have `C` as their semantic context, while
+the lexical context of the first `C::f` is `C` and the lexical context of the second `C::f`
+is the translation unit.
+
+For global declarations, the semantic parent is the translation unit.
 """
 function clang_getCursorSemanticParent(cursor)
     ccall((:clang_getCursorSemanticParent, libclang), CXCursor, (CXCursor,), cursor)
 end
 
 """
+    clang_getCursorLexicalParent(cursor) -> CXCursor
+Determine the lexical parent of the given cursor.
 
+The lexical parent of a cursor is the cursor in which the given `cursor` was actually written.
+For many declarations, the lexical and semantic parents are equivalent (the semantic parent
+is returned by [`clang_getCursorSemanticParent`](@ref)). They diverge when declarations or
+definitions are provided out-of-line. For example:
+```c
+class C {
+    void f();
+};
+
+void C::f() { }
+```
+
+In the out-of-line definition of `C::f`, the semantic parent is the class `C`, of which this
+function is a member. The lexical parent is the place where the declaration actually occurs
+in the source code; in this case, the definition occurs in the translation unit. In general,
+the lexical parent for a given entity can change without affecting the semantics of the
+program, and the lexical parent of different declarations of the same entity may be different.
+Changing the semantic parent of a declaration, on the other hand, can have a major impact on
+semantics, and redeclarations of a particular entity should all have the same semantic context.
+
+In the example above, both declarations of `C::f` have `C` as their semantic context, while
+the lexical context of the first `C::f` is `C` and the lexical context of the second `C::f`
+is the translation unit.
+
+For declarations written in the global scope, the lexical parent is the translation unit.
 """
 function clang_getCursorLexicalParent(cursor)
     ccall((:clang_getCursorLexicalParent, libclang), CXCursor, (CXCursor,), cursor)
 end
 
 """
+    clang_getOverriddenCursors(cursor, overridden, num_overridden) -> Cvoid
+Determine the set of methods that are overridden by the given method.
 
+In both Objective-C and C++, a method (aka virtual member function, in C++) can override a
+virtual method in a base class. For Objective-C, a method is said to override any method in
+the class's base class, its protocols, or its categories' protocols, that has the same selector
+and is of the same kind (class or instance). If no such method exists, the search continues
+to the class's superclass, its protocols, and its categories, and so on. A method from an
+Objective-C implementation is considered to override the same methods as its corresponding
+method in the interface.
+
+For C++, a virtual member function overrides any virtual member function with the same
+signature that occurs in its base classes. With multiple inheritance, a virtual member
+function can override several virtual member functions coming from different base classes.
+
+In all cases, this function determines the immediate overridden method, rather than all of
+the overridden methods. For example, if a method is originally declared in a class A, then
+overridden in B(which in inherits from A) and also in C (which inherited from B), then the
+only overridden method returned from this function when invoked on C's method will be B's
+method. The client may then invoke this function again, given the previously-found overridden
+methods, to map out the complete method-override set.
+
+## Arguments
+- `cursor`: A cursor representing an Objective-C or C++ method. This routine will compute the set of methods that this method overrides.
+- `overridden`: A pointer whose pointee will be replaced with a pointer to an array of cursors, representing the set of overridden methods. If there are no overridden methods, the pointee will be set to NULL. The pointee must be freed via a call to [`clang_disposeOverriddenCursors`](@ref).
+- `num_overridden`: A pointer to the number of overridden functions, will be set to the number of overridden functions in the array pointed to by `overridden`.
 """
 function clang_getOverriddenCursors(cursor, overridden, num_overridden)
     ccall((:clang_getOverriddenCursors, libclang), Cvoid, (CXCursor, Ptr{Ptr{CXCursor}}, Ptr{UInt32}), cursor, overridden, num_overridden)
 end
 
 """
-
+    clang_disposeOverriddenCursors(overridden) -> Cvoid
+Free the set of overridden cursors returned by [`clang_getOverriddenCursors`](@ref).
 """
 function clang_disposeOverriddenCursors(overridden)
     ccall((:clang_disposeOverriddenCursors, libclang), Cvoid, (Ptr{CXCursor},), overridden)
 end
 
 """
-
+    clang_getIncludedFile(cursor) -> CXFile
+Retrieve the file that is included by the given inclusion directive cursor.
 """
 function clang_getIncludedFile(cursor)
     ccall((:clang_getIncludedFile, libclang), CXFile, (CXCursor,), cursor)
 end
 
-"""
+## Mapping between cursors and source code
+# Cursors represent a location within the Abstract Syntax Tree (AST). These routines help
+# map between cursors and the physical locations where the described entities occur in the
+# source code. The mapping is provided in both directions, so one can map from source code
+# to the AST and back.
 
 """
-function clang_getCursor(arg1, arg2)
-    ccall((:clang_getCursor, libclang), CXCursor, (CXTranslationUnit, CXSourceLocation), arg1, arg2)
+    clang_getCursor(TU, srcloc) -> CXCursor
+Map a source location to the cursor that describes the entity at that location in the source code.
+
+[`clang_getCursor`](@ref) maps an arbitrary source location within a translation unit down
+to the most specific cursor that describes the entity at that location. For example, given
+an expression `x + y`, invoking [`clang_getCursor`](@ref) with a source location pointing
+to "x" will return the cursor for "x"; similarly for "y". If the cursor points anywhere
+between "x" or "y" (e.g., on the + or the whitespace around it), [`clang_getCursor`](@ref)
+will return a cursor referring to the "+" expression.
+
+## Returns
+a cursor representing the entity at the given source location, or a NULL cursor if no such entity can be found.
+"""
+function clang_getCursor(TU, srcloc)
+    ccall((:clang_getCursor, libclang), CXCursor, (CXTranslationUnit, CXSourceLocation), TU, srcloc)
 end
 
 """
+    clang_getCursorLocation(srcloc) -> CXSourceLocation
+Retrieve the physical location of the source constructor referenced by the given cursor.
 
+The location of a declaration is typically the location of the name of that declaration,
+where the name of that declaration would occur if it is unnamed, or some keyword that
+introduces that particular declaration. The location of a reference is where that reference
+occurs within the source code.
 """
-function clang_getCursorLocation(arg1)
-    ccall((:clang_getCursorLocation, libclang), CXSourceLocation, (CXCursor,), arg1)
+function clang_getCursorLocation(srcloc)
+    ccall((:clang_getCursorLocation, libclang), CXSourceLocation, (CXCursor,), srcloc)
 end
 
 """
+    clang_getCursorExtent(src_range) -> CXSourceRange
+Retrieve the physical extent of the source construct referenced by the given cursor.
 
+The extent of a cursor starts with the file/line/column pointing at the first character
+within the source construct that the cursor refers to and ends with the last character
+within that source construct. For a declaration, the extent covers the declaration itself.
+For a reference, the extent covers the location of the reference (e.g., where the referenced
+entity was actually used).
 """
-function clang_getCursorExtent(arg1)
-    ccall((:clang_getCursorExtent, libclang), CXSourceRange, (CXCursor,), arg1)
+function clang_getCursorExtent(src_range)
+    ccall((:clang_getCursorExtent, libclang), CXSourceRange, (CXCursor,), src_range)
 end
+
+## Type information for CXCursors
 
 """
 Describes the kind of type
 """
 @cenum CXTypeKind::UInt32 begin
-    CXType_Invalid = 0
-    CXType_Unexposed = 1
+    CXType_Invalid = 0 # Represents an invalid type (e.g., where no type is available).
+    CXType_Unexposed = 1  # A type whose specific kind is not exposed via this interface.
+    # Builtin types
     CXType_Void = 2
     CXType_Bool = 3
     CXType_Char_U = 4
@@ -1687,8 +1939,9 @@ Describes the kind of type
     CXType_DependentSizedArray = 116
     CXType_MemberPointer = 117
     CXType_Auto = 118
-    CXType_Elaborated = 119
-    CXType_Pipe = 120
+    CXType_Elaborated = 119  # Represents a type that was referred to using an elaborated type keyword. E.g., struct S, or via a qualified name, e.g., N::M::type, or both.
+    CXType_Pipe = 120  # OpenCL PipeType.
+    # OpenCL builtin types
     CXType_OCLImage1dRO = 121
     CXType_OCLImage1dArrayRO = 122
     CXType_OCLImage1dBufferRO = 123
@@ -1761,7 +2014,7 @@ Describes the calling convention of a function type
     CXCallingConv_X86RegCall = 8
     CXCallingConv_IntelOclBicc = 9
     CXCallingConv_Win64 = 10
-    CXCallingConv_X86_64Win64 = 10
+    CXCallingConv_X86_64Win64 = 10  # Alias for compatibility with older versions of API
     CXCallingConv_X86_64SysV = 11
     CXCallingConv_X86VectorCall = 12
     CXCallingConv_Swift = 13
@@ -1781,63 +2034,95 @@ struct CXType
 end
 
 """
-
+    clang_getCursorType(C) -> CXType
+Retrieve the type of a CXCursor (if any).
 """
 function clang_getCursorType(C)
     ccall((:clang_getCursorType, libclang), CXType, (CXCursor,), C)
 end
 
 """
+    clang_getTypeSpelling(CT) -> CXString
+Pretty-print the underlying type using the rules of the language of the translation unit
+from which it came.
 
+If the type is invalid, an empty string is returned.
 """
 function clang_getTypeSpelling(CT)
     ccall((:clang_getTypeSpelling, libclang), CXString, (CXType,), CT)
 end
 
 """
+    clang_getTypedefDeclUnderlyingType(C) -> CXType
+Retrieve the underlying type of a typedef declaration.
 
+If the cursor does not reference a typedef declaration, an invalid type is returned.
 """
 function clang_getTypedefDeclUnderlyingType(C)
     ccall((:clang_getTypedefDeclUnderlyingType, libclang), CXType, (CXCursor,), C)
 end
 
 """
+    clang_getEnumDeclIntegerType(C) -> CXType
+Retrieve the integer type of an enum declaration.
 
+If the cursor does not reference an enum declaration, an invalid type is returned.
 """
 function clang_getEnumDeclIntegerType(C)
     ccall((:clang_getEnumDeclIntegerType, libclang), CXType, (CXCursor,), C)
 end
 
 """
+    clang_getEnumConstantDeclValue(C) -> Clonglong
+Retrieve the integer value of an enum constant declaration as a `signed long long`.
 
+If the cursor does not reference an enum constant declaration, LLONG_MIN is returned.
+Since this is also potentially a valid constant value, the kind of the cursor must be verified
+before calling this function.
 """
 function clang_getEnumConstantDeclValue(C)
     ccall((:clang_getEnumConstantDeclValue, libclang), Clonglong, (CXCursor,), C)
 end
 
 """
+    clang_getEnumConstantDeclUnsignedValue(C) -> Culonglong
+Retrieve the integer value of an enum constant declaration as an `unsigned long long`.
 
+If the cursor does not reference an enum constant declaration, ULLONG_MAX is returned.
+Since this is also potentially a valid constant value, the kind of the cursor must be
+verified before calling this function.
 """
 function clang_getEnumConstantDeclUnsignedValue(C)
     ccall((:clang_getEnumConstantDeclUnsignedValue, libclang), Culonglong, (CXCursor,), C)
 end
 
 """
+    clang_getFieldDeclBitWidth(C) -> Cint
+Retrieve the bit width of a bit field declaration as an integer.
 
+If a cursor that is not a bit field declaration is passed in, -1 is returned.
 """
 function clang_getFieldDeclBitWidth(C)
     ccall((:clang_getFieldDeclBitWidth, libclang), Cint, (CXCursor,), C)
 end
 
 """
+    clang_Cursor_getNumArguments(C) -> Cint
+Retrieve the number of non-variadic arguments associated with a given cursor.
 
+The number of arguments can be determined for calls as well as for declarations of functions
+or methods. For other cursors -1 is returned.
 """
 function clang_Cursor_getNumArguments(C)
     ccall((:clang_Cursor_getNumArguments, libclang), Cint, (CXCursor,), C)
 end
 
 """
+    clang_Cursor_getArgument(C, i) -> CXCursor
+Retrieve the argument cursor of a function or method.
 
+The argument cursor can be determined for calls as well as for declarations of functions or
+methods. For other cursors and for invalid indices, an invalid cursor is returned.
 """
 function clang_Cursor_getArgument(C, i)
     ccall((:clang_Cursor_getArgument, libclang), CXCursor, (CXCursor, UInt32), C, i)
@@ -1846,7 +2131,7 @@ end
 """
 Describes the kind of a template argument.
 
-See the definition of llvm::clang::TemplateArgument::ArgKind for full element descriptions.
+See the definition of `llvm::clang::TemplateArgument::ArgKind` for full element descriptions.
 """
 @cenum CXTemplateArgumentKind::UInt32 begin
     CXTemplateArgumentKind_Null = 0
@@ -1858,284 +2143,452 @@ See the definition of llvm::clang::TemplateArgument::ArgKind for full element de
     CXTemplateArgumentKind_TemplateExpansion = 6
     CXTemplateArgumentKind_Expression = 7
     CXTemplateArgumentKind_Pack = 8
+    # Indicates an error case, preventing the kind from being deduced
     CXTemplateArgumentKind_Invalid = 9
 end
 
 """
+    clang_Cursor_getNumTemplateArguments(C) -> Cint
+Returns the number of template args of a function decl representing a template specialization.
 
+If the argument cursor cannot be converted into a template function declaration, -1 is returned.
+
+For example, for the following declaration and specialization:
+
+```c
+template <typename T, int kInt, bool kBool>
+void foo() { ... }
+
+template <>
+void foo<float, -7, true>();
+```
+
+The value 3 would be returned from this call.
 """
 function clang_Cursor_getNumTemplateArguments(C)
     ccall((:clang_Cursor_getNumTemplateArguments, libclang), Cint, (CXCursor,), C)
 end
 
 """
+    clang_Cursor_getTemplateArgumentKind(C, I) -> CXTemplateArgumentKind
+Retrieve the kind of the I'th template argument of the CXCursor `C`.
 
+If the argument CXCursor does not represent a FunctionDecl, an invalid template argument kind is returned.
+
+For example, for the following declaration and specialization:
+
+```c
+template <typename T, int kInt, bool kBool>
+void foo() { ... }
+
+template <>
+void foo<float, -7, true>();
+```
+For I = 0, 1, and 2, Type, Integral, and Integral will be returned, respectively.
 """
 function clang_Cursor_getTemplateArgumentKind(C, I)
     ccall((:clang_Cursor_getTemplateArgumentKind, libclang), CXTemplateArgumentKind, (CXCursor, UInt32), C, I)
 end
 
 """
+    clang_Cursor_getTemplateArgumentType(C, I) -> CXType
+Retrieve a CXType representing the type of a TemplateArgument of a function decl representing a template specialization.
 
+If the argument CXCursor does not represent a FunctionDecl whose I'th template argument has
+a kind of CXTemplateArgKind_Integral, an invalid type is returned.
+
+For example, for the following declaration and specialization:
+```c
+template <typename T, int kInt, bool kBool>
+void foo() { ... }
+
+template <>
+void foo<float, -7, true>();
+```
+If called with I = 0, "float", will be returned.
+Invalid types will be returned for I == 1 or 2.
 """
 function clang_Cursor_getTemplateArgumentType(C, I)
     ccall((:clang_Cursor_getTemplateArgumentType, libclang), CXType, (CXCursor, UInt32), C, I)
 end
 
 """
+    clang_Cursor_getTemplateArgumentValue(C, I) -> Clonglong
+Retrieve the value of an Integral TemplateArgument (of a function decl representing a
+template specialization) as a signed long long.
 
+It is undefined to call this function on a CXCursor that does not represent a FunctionDecl
+or whose I'th template argument is not an integral value.
+
+For example, for the following declaration and specialization:
+
+```c
+template <typename T, int kInt, bool kBool>
+void foo() { ... }
+
+template <>
+void foo<float, -7, true>();
+```
+
+If called with I = 1 or 2, -7 or true will be returned, respectively.
+For I == 0, this function's behavior is undefined.
 """
 function clang_Cursor_getTemplateArgumentValue(C, I)
     ccall((:clang_Cursor_getTemplateArgumentValue, libclang), Clonglong, (CXCursor, UInt32), C, I)
 end
 
 """
+    clang_Cursor_getTemplateArgumentUnsignedValue(C, I) -> Culonglong
+Retrieve the value of an Integral TemplateArgument (of a function decl representing a
+template specialization) as an unsigned long long.
 
+It is undefined to call this function on a CXCursor that does not represent a FunctionDecl
+or whose I'th template argument is not an integral value.
+
+For example, for the following declaration and specialization:
+```c
+template <typename T, int kInt, bool kBool>
+void foo() { ... }
+
+template <>
+void foo<float, 2147483649, true>();
+```
+If called with I = 1 or 2, 2147483649 or true will be returned, respectively.
+For I == 0, this function's behavior is undefined.
 """
 function clang_Cursor_getTemplateArgumentUnsignedValue(C, I)
     ccall((:clang_Cursor_getTemplateArgumentUnsignedValue, libclang), Culonglong, (CXCursor, UInt32), C, I)
 end
 
 """
+    clang_equalTypes(A, B) -> UInt32
+Determine whether two CXTypes represent the same type.
 
+## Returns
+non-zero if the CXTypes represent the same type and zero otherwise.
 """
 function clang_equalTypes(A, B)
     ccall((:clang_equalTypes, libclang), UInt32, (CXType, CXType), A, B)
 end
 
 """
+    clang_getCanonicalType(T) -> CXType
+Return the canonical type for a CXType.
 
+Clang's type system explicitly models typedefs and all the ways a specific type can be
+represented.  The canonical type is the underlying type with all the "sugar" removed.
+For example, if 'T' is a typedef for 'int', the canonical type for 'T' would be 'int'.
 """
 function clang_getCanonicalType(T)
     ccall((:clang_getCanonicalType, libclang), CXType, (CXType,), T)
 end
 
 """
-
+    clang_isConstQualifiedType(T) -> UInt32
+Determine whether a CXType has the "const" qualifier set, without looking through typedefs
+that may have added "const" at a different level.
 """
 function clang_isConstQualifiedType(T)
     ccall((:clang_isConstQualifiedType, libclang), UInt32, (CXType,), T)
 end
 
 """
-
+    clang_Cursor_isMacroFunctionLike(C) -> UInt32
+Determine whether a  CXCursor that is a macro, is function like.
 """
 function clang_Cursor_isMacroFunctionLike(C)
     ccall((:clang_Cursor_isMacroFunctionLike, libclang), UInt32, (CXCursor,), C)
 end
 
 """
-
+    clang_Cursor_isMacroBuiltin(C) -> UInt32
+Determine whether a CXCursor that is a macro, is a builtin one.
 """
 function clang_Cursor_isMacroBuiltin(C)
     ccall((:clang_Cursor_isMacroBuiltin, libclang), UInt32, (CXCursor,), C)
 end
 
 """
-
+    clang_Cursor_isFunctionInlined(C) -> UInt32
+Determine whether a CXCursor that is a function declaration, is an inline declaration.
 """
 function clang_Cursor_isFunctionInlined(C)
     ccall((:clang_Cursor_isFunctionInlined, libclang), UInt32, (CXCursor,), C)
 end
 
 """
-
+    clang_isVolatileQualifiedType(T) -> UInt32
+Determine whether a CXType has the "volatile" qualifier set, without looking through typedefs
+that may have added "volatile" at a different level.
 """
 function clang_isVolatileQualifiedType(T)
     ccall((:clang_isVolatileQualifiedType, libclang), UInt32, (CXType,), T)
 end
 
 """
-
+    clang_isRestrictQualifiedType(T) -> UInt32
+Determine whether a CXType has the "restrict" qualifier set, without looking through typedefs
+that may have added "restrict" at a different level.
 """
 function clang_isRestrictQualifiedType(T)
     ccall((:clang_isRestrictQualifiedType, libclang), UInt32, (CXType,), T)
 end
 
 """
-
+    clang_getAddressSpace(T) -> UInt32
+Returns the address space of the given type.
 """
 function clang_getAddressSpace(T)
     ccall((:clang_getAddressSpace, libclang), UInt32, (CXType,), T)
 end
 
 """
-
+    clang_getTypedefName(CT) -> CXString
+Returns the typedef name of the given type.
 """
 function clang_getTypedefName(CT)
     ccall((:clang_getTypedefName, libclang), CXString, (CXType,), CT)
 end
 
 """
-
+    clang_getPointeeType(T) -> CXType
+For pointer types, returns the type of the pointee.
 """
 function clang_getPointeeType(T)
     ccall((:clang_getPointeeType, libclang), CXType, (CXType,), T)
 end
 
 """
-
+    clang_getTypeDeclaration(T) -> CXCursor
+Return the cursor for the declaration of the given type.
 """
 function clang_getTypeDeclaration(T)
     ccall((:clang_getTypeDeclaration, libclang), CXCursor, (CXType,), T)
 end
 
 """
-
+    clang_getDeclObjCTypeEncoding(C) -> CXString
+Returns the Objective-C type encoding for the specified declaration.
 """
 function clang_getDeclObjCTypeEncoding(C)
     ccall((:clang_getDeclObjCTypeEncoding, libclang), CXString, (CXCursor,), C)
 end
 
 """
-
+    clang_Type_getObjCEncoding(type) -> CXString
+Returns the Objective-C type encoding for the specified CXType.
 """
 function clang_Type_getObjCEncoding(type)
     ccall((:clang_Type_getObjCEncoding, libclang), CXString, (CXType,), type)
 end
 
 """
-
+    clang_getTypeKindSpelling(K) -> CXString
+Retrieve the spelling of a given [`CXTypeKind`](@ref).
 """
 function clang_getTypeKindSpelling(K)
     ccall((:clang_getTypeKindSpelling, libclang), CXString, (CXTypeKind,), K)
 end
 
 """
+    clang_getFunctionTypeCallingConv(T) -> CXCallingConv
+Retrieve the calling convention associated with a function type.
 
+If a non-function type is passed in, [`CXCallingConv_Invalid`](@ref) is returned.
 """
 function clang_getFunctionTypeCallingConv(T)
     ccall((:clang_getFunctionTypeCallingConv, libclang), CXCallingConv, (CXType,), T)
 end
 
 """
+    clang_getResultType(T) -> CXType
+Retrieve the return type associated with a function type.
 
+If a non-function type is passed in, an invalid type is returned.
 """
 function clang_getResultType(T)
     ccall((:clang_getResultType, libclang), CXType, (CXType,), T)
 end
 
 """
+    clang_getExceptionSpecificationType(T) -> Cint
+Retrieve the exception specification type associated with a function type.
+This is a value of type CXCursor_ExceptionSpecificationKind.
 
+If a non-function type is passed in, an error code of -1 is returned.
 """
 function clang_getExceptionSpecificationType(T)
     ccall((:clang_getExceptionSpecificationType, libclang), Cint, (CXType,), T)
 end
 
 """
+    clang_getNumArgTypes(T) -> Cint
+Retrieve the number of non-variadic parameters associated with a function type.
 
+If a non-function type is passed in, -1 is returned.
 """
 function clang_getNumArgTypes(T)
     ccall((:clang_getNumArgTypes, libclang), Cint, (CXType,), T)
 end
 
 """
+    clang_getArgType(T, i) -> CXType
+Retrieve the type of a parameter of a function type.
 
+If a non-function type is passed in or the function does not have enough parameters, an
+invalid type is returned.
 """
 function clang_getArgType(T, i)
     ccall((:clang_getArgType, libclang), CXType, (CXType, UInt32), T, i)
 end
 
 """
+    clang_Type_getObjCObjectBaseType(T) -> CXType
+Retrieves the base type of the ObjCObjectType.
 
+If the type is not an ObjC object, an invalid type is returned.
 """
 function clang_Type_getObjCObjectBaseType(T)
     ccall((:clang_Type_getObjCObjectBaseType, libclang), CXType, (CXType,), T)
 end
 
 """
+    clang_Type_getNumObjCProtocolRefs(T) -> UInt32
+Retrieve the number of protocol references associated with an ObjC object/id.
 
+If the type is not an ObjC object, 0 is returned.
 """
 function clang_Type_getNumObjCProtocolRefs(T)
     ccall((:clang_Type_getNumObjCProtocolRefs, libclang), UInt32, (CXType,), T)
 end
 
 """
+    clang_Type_getObjCProtocolDecl(T, i) -> CXCursor
+Retrieve the decl for a protocol reference for an ObjC object/id.
 
+If the type is not an ObjC object or there are not enough protocol references, an invalid
+cursor is returned.
 """
 function clang_Type_getObjCProtocolDecl(T, i)
     ccall((:clang_Type_getObjCProtocolDecl, libclang), CXCursor, (CXType, UInt32), T, i)
 end
 
 """
+    clang_Type_getNumObjCTypeArgs(T) -> UInt32
+Retreive the number of type arguments associated with an ObjC object.
 
+If the type is not an ObjC object, 0 is returned.
 """
 function clang_Type_getNumObjCTypeArgs(T)
     ccall((:clang_Type_getNumObjCTypeArgs, libclang), UInt32, (CXType,), T)
 end
 
 """
+    clang_Type_getObjCTypeArg(T, i) -> CXType
+Retrieve a type argument associated with an ObjC object.
 
+If the type is not an ObjC or the index is not valid, an invalid type is returned.
 """
 function clang_Type_getObjCTypeArg(T, i)
     ccall((:clang_Type_getObjCTypeArg, libclang), CXType, (CXType, UInt32), T, i)
 end
 
 """
-
+    clang_isFunctionTypeVariadic(T) -> UInt32
+Return 1 if the CXType is a variadic function type, and 0 otherwise.
 """
 function clang_isFunctionTypeVariadic(T)
     ccall((:clang_isFunctionTypeVariadic, libclang), UInt32, (CXType,), T)
 end
 
 """
+    clang_getCursorResultType(C) -> CXType
+Retrieve the return type associated with a given cursor.
 
+This only returns a valid type if the cursor refers to a function or method.
 """
 function clang_getCursorResultType(C)
     ccall((:clang_getCursorResultType, libclang), CXType, (CXCursor,), C)
 end
 
 """
+    clang_getCursorExceptionSpecificationType(C) -> Cint
+Retrieve the exception specification type associated with a given cursor.
+This is a value of type CXCursor_ExceptionSpecificationKind.
 
+This only returns a valid result if the cursor refers to a function or method.
 """
 function clang_getCursorExceptionSpecificationType(C)
     ccall((:clang_getCursorExceptionSpecificationType, libclang), Cint, (CXCursor,), C)
 end
 
 """
-
+    clang_isPODType(T) -> UInt32
+Return 1 if the CXType is a POD (plain old data) type, and 0 otherwise.
 """
 function clang_isPODType(T)
     ccall((:clang_isPODType, libclang), UInt32, (CXType,), T)
 end
 
 """
+    clang_getElementType(T) -> CXType
+Return the element type of an array, complex, or vector type.
 
+If a type is passed in that is not an array, complex, or vector type, an invalid type is returned.
 """
 function clang_getElementType(T)
     ccall((:clang_getElementType, libclang), CXType, (CXType,), T)
 end
 
 """
+    clang_getNumElements(T) -> Clonglong
+Return the number of elements of an array or vector type.
 
+If a type is passed in that is not an array or vector type, -1 is returned.
 """
 function clang_getNumElements(T)
     ccall((:clang_getNumElements, libclang), Clonglong, (CXType,), T)
 end
 
 """
+    clang_getArrayElementType(T) -> CXType
+Return the element type of an array type.
 
+If a non-array type is passed in, an invalid type is returned.
 """
 function clang_getArrayElementType(T)
     ccall((:clang_getArrayElementType, libclang), CXType, (CXType,), T)
 end
 
 """
+    clang_getArraySize(T) -> Clonglong
+Return the array size of a constant array.
 
+If a non-array type is passed in, -1 is returned.
 """
 function clang_getArraySize(T)
     ccall((:clang_getArraySize, libclang), Clonglong, (CXType,), T)
 end
 
 """
+    clang_Type_getNamedType(T) -> CXType
+Retrieve the type named by the qualified-id.
 
+If a non-elaborated type is passed in, an invalid type is returned.
 """
 function clang_Type_getNamedType(T)
     ccall((:clang_Type_getNamedType, libclang), CXType, (CXType,), T)
 end
 
 """
+    clang_Type_isTransparentTagTypedef(T) -> UInt32
+Determine if a typedef is 'transparent' tag.
 
+A typedef is considered 'transparent' if it shares a name and spelling location with its
+underlying tag type, as is the case with the NS_ENUM macro.
+
+## Returns
+non-zero if transparent and zero otherwise.
 """
 function clang_Type_isTransparentTagTypedef(T)
     ccall((:clang_Type_isTransparentTagTypedef, libclang), UInt32, (CXType,), T)
@@ -2143,14 +2596,14 @@ end
 
 
 @cenum CXTypeNullabilityKind::UInt32 begin
-    CXTypeNullability_NonNull = 0       # values of this type can never be null
-    CXTypeNullability_Nullable = 1      # values of this type can be null
-    CXTypeNullability_Unspecified = 2   # whether values of this type can be null is (explicitly) unspecified. This captures a (fairly rare) case where we can't conclude anything about the nullability of the type even though it has been considered.
-    CXTypeNullability_Invalid = 3       # nullability is not applicable to this type
+    CXTypeNullability_NonNull = 0       # Values of this type can never be null
+    CXTypeNullability_Nullable = 1      # Values of this type can be null
+    CXTypeNullability_Unspecified = 2   # Whether values of this type can be null is (explicitly) unspecified. This captures a (fairly rare) case where we can't conclude anything about the nullability of the type even though it has been considered.
+    CXTypeNullability_Invalid = 3       # Nullability is not applicable to this type
 end
 
 """
-    clang_Type_getNullability(T)
+    clang_Type_getNullability(T) -> CXTypeNullabilityKind
 Retrieve the nullability kind of a pointer type.
 """
 function clang_Type_getNullability(T)
@@ -2165,11 +2618,11 @@ A value of this enumeration type can be returned if the target type is not a val
 to sizeof, alignof or offsetof.
 """
 @cenum CXTypeLayoutError::Int32 begin
-    CXTypeLayoutError_Invalid = -1          # type is of kind `CXType_Invalid`
-    CXTypeLayoutError_Incomplete = -2       # the type is an incomplete Type
-    CXTypeLayoutError_Dependent = -3        # the type is a dependent Type
-    CXTypeLayoutError_NotConstantSize = -4  # the type is not a constant size type
-    CXTypeLayoutError_InvalidFieldName = -5 # the Field name is not valid for this record
+    CXTypeLayoutError_Invalid = -1          # Type is of kind `CXType_Invalid`
+    CXTypeLayoutError_Incomplete = -2       # The type is an incomplete Type
+    CXTypeLayoutError_Dependent = -3        # The type is a dependent Type
+    CXTypeLayoutError_NotConstantSize = -4  # The type is not a constant size type
+    CXTypeLayoutError_InvalidFieldName = -5 # The Field name is not valid for this record
 end
 
 """
