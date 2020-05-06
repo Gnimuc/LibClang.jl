@@ -8,7 +8,7 @@ CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 LLVM_jll = "86de99a1-58d6-5da7-8064-bd56ce2e322c"
 
 [compat]
-CEnum = "0.2"
+CEnum = "0.2, 0.3"
 LLVM_jll = "8.0.1"
 julia = "~1.4.0"
 
