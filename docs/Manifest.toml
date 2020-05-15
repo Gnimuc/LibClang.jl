@@ -3,6 +3,11 @@
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
+[[CEnum]]
+git-tree-sha1 = "018a008c61eb9e422dfabbdd6f4ceba8adff9544"
+uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+version = "0.4.0"
+
 [[Dates]]
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -19,9 +24,9 @@ version = "0.8.1"
 
 [[Documenter]]
 deps = ["Base64", "Dates", "DocStringExtensions", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "REPL", "Test", "Unicode"]
-git-tree-sha1 = "646ebc3db49889ffeb4c36f89e5d82c6a26295ff"
+git-tree-sha1 = "395fa1554c69735802bba37d9e7d9586fd44326c"
 uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-version = "0.24.7"
+version = "0.24.11"
 
 [[InteractiveUtils]]
 deps = ["Markdown"]
@@ -33,10 +38,17 @@ git-tree-sha1 = "b34d7cef7b337321e97d22242c3c2b91f476748e"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.0"
 
+[[LLVM_jll]]
+deps = ["Libdl", "Pkg"]
+git-tree-sha1 = "c037c15f36c185c613e5b2589d5833720dab3f76"
+uuid = "86de99a1-58d6-5da7-8064-bd56ce2e322c"
+version = "8.0.1+0"
+
 [[LibClang]]
+deps = ["CEnum", "LLVM_jll"]
 path = ".."
 uuid = "673b39ed-8657-431a-8e65-2365c8cec7d5"
-version = "0.1.0"
+version = "0.50.0"
 
 [[LibGit2]]
 deps = ["Printf"]
@@ -57,9 +69,9 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "d6d82d5bdbb75048e574cd2d2c89dfbf2c74250c"
+git-tree-sha1 = "f0abb338b4d00306500056a3fd44c221b8473ef2"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "1.0.0"
+version = "1.0.4"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
