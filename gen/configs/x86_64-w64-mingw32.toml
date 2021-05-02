@@ -6,10 +6,7 @@ library_name = "libclang"
 
 # for cross-platform, the directory of those platform-specific files will be `dirname(output_file_path)/wrappers/`
 output_file_path = "../src/wrappers/x86_64-w64-mingw32.jl"
-
-# identifiers that starts with the string listed in this entry will be exported.
-export_symbol_prefixes = ["CX", "clang_"]
-
+ 
 # node with an id in the `printer_blacklist` will be ignored in the printing passes. 
 # this is very useful for custom editing. 
 printer_blacklist = [

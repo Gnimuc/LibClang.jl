@@ -3,8 +3,6 @@ module LibClang
 using Clang_jll
 export Clang_jll
 
-using CEnum
-
 @static if Sys.islinux() && Sys.ARCH === :aarch64 && !occursin("musl", Base.BUILD_TRIPLET)
     include("wrappers/aarch64-linux-gnu.jl")
 elseif Sys.islinux() && Sys.ARCH === :aarch64 && occursin("musl", Base.BUILD_TRIPLET)
