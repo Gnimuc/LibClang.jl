@@ -1,0 +1,47 @@
+[general]
+# it could also be an expression as long as `Meta.parse` can parse this string successfully.
+# basically, it should be the `expression` in the following code:
+# ccall((function_name, expression), returntype, (argtype1, ...), argvalue1, ...)
+library_name = "libclang"
+
+# for cross-platform, the directory of those platform-specific files will be `dirname(output_file_path)/wrappers/`
+output_file_path = "../src/wrappers/armv7l-linux-musleabihf.jl"
+
+# identifiers that starts with the string listed in this entry will be exported.
+export_symbol_prefixes = ["CX", "clang_"]
+
+# node with an id in the `printer_blacklist` will be ignored in the printing passes. 
+# this is very useful for custom editing. 
+printer_blacklist = [
+    "CINDEX_EXPORTS",
+    "CINDEX_VERSION",
+    "CINDEX_VERSION_STRING",
+    "CINDEX_LINKAGE",
+    "CINDEX_DEPRECATED",
+    "LLVM_CLANG_C_STRICT_PROTOTYPES_BEGIN",
+    "LLVM_CLANG_C_STRICT_PROTOTYPES_END",
+    "LLVM_CLANG_C_EXTERN_C_BEGIN",
+    "LLVM_CLANG_C_EXTERN_C_END"
+]
+
+# use deterministic symbol instead of `gensym`-generated `var"##XXX"`
+use_deterministic_symbol = true
+
+[codegen.macro]
+# it‘s highly recommended to set this entry to "basic".
+# if you'd like to skip all of the macros, please set this entry to "disable".
+# if you'd like to translate function-like macros to Julia, please set this entry to "aggressive".
+macro_mode = "basic"
+
+# function-like macros in the following list will always be translated.
+functionlike_macro_whitelist = [
+    "CINDEX_VERSION_ENCODE",
+]
+
+# if true, ignore any macros that is suffixed with "_H" or in the `ignore_header_guards_with_suffixes` list
+ignore_header_guards = true
+ignore_header_guards_with_suffixes = []
+
+# if true, ignore those pure definition macros in the C code
+ignore_pure_definition = true
+
