@@ -2,11 +2,9 @@
 CurrentModule = LibClang
 ```
 
-# LibClang
-
-```@index
-```
+# API Reference
 
 ```@autodocs
 Modules = [LibClang]
+Order = [:constant, :function, :type]
 ```
