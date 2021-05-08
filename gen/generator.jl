@@ -8,8 +8,6 @@ include_dir = joinpath(Clang_jll.artifact_dir, "include") |> normpath
 clang_dir = joinpath(include_dir, "clang-c")
 
 for target in JLLEnvs.JLL_ENV_TRIPLES
-    target == "aarch64-apple-darwin20" && continue
-
     @info "processing $target"
 
     options = load_options(joinpath(@__DIR__, "configs", "$target.toml"))
