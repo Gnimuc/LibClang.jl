@@ -3,9 +3,6 @@
 # basically, it should be the `expression` in the following code:
 # ccall((function_name, expression), returntype, (argtype1, ...), argvalue1, ...)
 library_name = "libclang"
-
-# for cross-platform, the directory of those platform-specific files will be `dirname(output_file_path)/wrappers/`
-output_file_path = "../src/wrappers/x86_64-linux-musl.jl"
  
 # node with an id in the `printer_blacklist` will be ignored in the printing passes. 
 # this is very useful for custom editing. 

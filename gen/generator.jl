@@ -10,7 +10,8 @@ clang_dir = joinpath(include_dir, "clang-c")
 for target in JLLEnvs.JLL_ENV_TRIPLES
     @info "processing $target"
 
-    options = load_options(joinpath(@__DIR__, "configs", "$target.toml"))
+    options = load_options(joinpath(@__DIR__, "generator.toml"))
+    options["general"]["output_file_path"] = joinpath(@__DIR__, "..", "lib", "$target.jl")
 
     args = get_default_args(target)
     push!(args, "-I$include_dir")
