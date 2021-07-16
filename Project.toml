@@ -1,7 +1,7 @@
 name = "LibClang"
 uuid = "673b39ed-8657-431a-8e65-2365c8cec7d5"
 authors = ["Yupei Qi <qiyupei@gmail.com>"]
-version = "0.60.1"
+version = "0.61.0"
 
 [deps]
 CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
@@ -9,8 +9,8 @@ Clang_jll = "0ee61d77-7f21-5576-8119-9fcc46b10100"
 
 [compat]
 CEnum = "0.4"
-Clang_jll = "~11.0.1"
-julia = "~1.6.0"
+Clang_jll = "~12.0.0"
+julia = "~1.7.0"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
