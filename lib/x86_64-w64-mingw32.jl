@@ -4,6 +4,22 @@ const __time64_t = Clonglong
 
 const time_t = __time64_t
 
+function clang_install_aborting_llvm_fatal_error_handler()
+    ccall((:clang_install_aborting_llvm_fatal_error_handler, libclang), Cvoid, ())
+end
+
+function clang_uninstall_llvm_fatal_error_handler()
+    ccall((:clang_uninstall_llvm_fatal_error_handler, libclang), Cvoid, ())
+end
+
+@cenum CXErrorCode::UInt32 begin
+    CXError_Success = 0
+    CXError_Failure = 1
+    CXError_Crashed = 2
+    CXError_InvalidArguments = 3
+    CXError_ASTReadError = 4
+end
+
 struct CXString
     data::Ptr{Cvoid}
     private_flags::Cuint
@@ -24,89 +40,6 @@ end
 
 function clang_disposeStringSet(set)
     ccall((:clang_disposeStringSet, libclang), Cvoid, (Ptr{CXStringSet},), set)
-end
-
-const CXCompilationDatabase = Ptr{Cvoid}
-
-const CXCompileCommands = Ptr{Cvoid}
-
-const CXCompileCommand = Ptr{Cvoid}
-
-@cenum CXCompilationDatabase_Error::UInt32 begin
-    CXCompilationDatabase_NoError = 0
-    CXCompilationDatabase_CanNotLoadDatabase = 1
-end
-
-function clang_CompilationDatabase_fromDirectory(BuildDir, ErrorCode)
-    ccall((:clang_CompilationDatabase_fromDirectory, libclang), CXCompilationDatabase, (Ptr{Cchar}, Ptr{CXCompilationDatabase_Error}), BuildDir, ErrorCode)
-end
-
-function clang_CompilationDatabase_dispose(arg1)
-    ccall((:clang_CompilationDatabase_dispose, libclang), Cvoid, (CXCompilationDatabase,), arg1)
-end
-
-function clang_CompilationDatabase_getCompileCommands(arg1, CompleteFileName)
-    ccall((:clang_CompilationDatabase_getCompileCommands, libclang), CXCompileCommands, (CXCompilationDatabase, Ptr{Cchar}), arg1, CompleteFileName)
-end
-
-function clang_CompilationDatabase_getAllCompileCommands(arg1)
-    ccall((:clang_CompilationDatabase_getAllCompileCommands, libclang), CXCompileCommands, (CXCompilationDatabase,), arg1)
-end
-
-function clang_CompileCommands_dispose(arg1)
-    ccall((:clang_CompileCommands_dispose, libclang), Cvoid, (CXCompileCommands,), arg1)
-end
-
-function clang_CompileCommands_getSize(arg1)
-    ccall((:clang_CompileCommands_getSize, libclang), Cuint, (CXCompileCommands,), arg1)
-end
-
-function clang_CompileCommands_getCommand(arg1, I)
-    ccall((:clang_CompileCommands_getCommand, libclang), CXCompileCommand, (CXCompileCommands, Cuint), arg1, I)
-end
-
-function clang_CompileCommand_getDirectory(arg1)
-    ccall((:clang_CompileCommand_getDirectory, libclang), CXString, (CXCompileCommand,), arg1)
-end
-
-function clang_CompileCommand_getFilename(arg1)
-    ccall((:clang_CompileCommand_getFilename, libclang), CXString, (CXCompileCommand,), arg1)
-end
-
-function clang_CompileCommand_getNumArgs(arg1)
-    ccall((:clang_CompileCommand_getNumArgs, libclang), Cuint, (CXCompileCommand,), arg1)
-end
-
-function clang_CompileCommand_getArg(arg1, I)
-    ccall((:clang_CompileCommand_getArg, libclang), CXString, (CXCompileCommand, Cuint), arg1, I)
-end
-
-function clang_CompileCommand_getNumMappedSources(arg1)
-    ccall((:clang_CompileCommand_getNumMappedSources, libclang), Cuint, (CXCompileCommand,), arg1)
-end
-
-function clang_CompileCommand_getMappedSourcePath(arg1, I)
-    ccall((:clang_CompileCommand_getMappedSourcePath, libclang), CXString, (CXCompileCommand, Cuint), arg1, I)
-end
-
-function clang_CompileCommand_getMappedSourceContent(arg1, I)
-    ccall((:clang_CompileCommand_getMappedSourceContent, libclang), CXString, (CXCompileCommand, Cuint), arg1, I)
-end
-
-function clang_install_aborting_llvm_fatal_error_handler()
-    ccall((:clang_install_aborting_llvm_fatal_error_handler, libclang), Cvoid, ())
-end
-
-function clang_uninstall_llvm_fatal_error_handler()
-    ccall((:clang_uninstall_llvm_fatal_error_handler, libclang), Cvoid, ())
-end
-
-@cenum CXErrorCode::UInt32 begin
-    CXError_Success = 0
-    CXError_Failure = 1
-    CXError_Crashed = 2
-    CXError_InvalidArguments = 3
-    CXError_ASTReadError = 4
 end
 
 function clang_getBuildSessionTimestamp()
@@ -2563,36 +2496,6 @@ function clang_Type_visitFields(T, visitor, client_data)
     ccall((:clang_Type_visitFields, libclang), Cuint, (CXType, CXFieldVisitor, CXClientData), T, visitor, client_data)
 end
 
-const CXRewriter = Ptr{Cvoid}
-
-function clang_CXRewriter_create(TU)
-    ccall((:clang_CXRewriter_create, libclang), CXRewriter, (CXTranslationUnit,), TU)
-end
-
-function clang_CXRewriter_insertTextBefore(Rew, Loc, Insert)
-    ccall((:clang_CXRewriter_insertTextBefore, libclang), Cvoid, (CXRewriter, CXSourceLocation, Ptr{Cchar}), Rew, Loc, Insert)
-end
-
-function clang_CXRewriter_replaceText(Rew, ToBeReplaced, Replacement)
-    ccall((:clang_CXRewriter_replaceText, libclang), Cvoid, (CXRewriter, CXSourceRange, Ptr{Cchar}), Rew, ToBeReplaced, Replacement)
-end
-
-function clang_CXRewriter_removeText(Rew, ToBeRemoved)
-    ccall((:clang_CXRewriter_removeText, libclang), Cvoid, (CXRewriter, CXSourceRange), Rew, ToBeRemoved)
-end
-
-function clang_CXRewriter_overwriteChangedFiles(Rew)
-    ccall((:clang_CXRewriter_overwriteChangedFiles, libclang), Cint, (CXRewriter,), Rew)
-end
-
-function clang_CXRewriter_writeMainFileToStdOut(Rew)
-    ccall((:clang_CXRewriter_writeMainFileToStdOut, libclang), Cvoid, (CXRewriter,), Rew)
-end
-
-function clang_CXRewriter_dispose(Rew)
-    ccall((:clang_CXRewriter_dispose, libclang), Cvoid, (CXRewriter,), Rew)
-end
-
 struct CXComment
     ASTNode::Ptr{Cvoid}
     TranslationUnit::CXTranslationUnit
@@ -2764,9 +2667,104 @@ function clang_FullComment_getAsXML(Comment)
     ccall((:clang_FullComment_getAsXML, libclang), CXString, (CXComment,), Comment)
 end
 
+const CXCompilationDatabase = Ptr{Cvoid}
+
+const CXCompileCommands = Ptr{Cvoid}
+
+const CXCompileCommand = Ptr{Cvoid}
+
+@cenum CXCompilationDatabase_Error::UInt32 begin
+    CXCompilationDatabase_NoError = 0
+    CXCompilationDatabase_CanNotLoadDatabase = 1
+end
+
+function clang_CompilationDatabase_fromDirectory(BuildDir, ErrorCode)
+    ccall((:clang_CompilationDatabase_fromDirectory, libclang), CXCompilationDatabase, (Ptr{Cchar}, Ptr{CXCompilationDatabase_Error}), BuildDir, ErrorCode)
+end
+
+function clang_CompilationDatabase_dispose(arg1)
+    ccall((:clang_CompilationDatabase_dispose, libclang), Cvoid, (CXCompilationDatabase,), arg1)
+end
+
+function clang_CompilationDatabase_getCompileCommands(arg1, CompleteFileName)
+    ccall((:clang_CompilationDatabase_getCompileCommands, libclang), CXCompileCommands, (CXCompilationDatabase, Ptr{Cchar}), arg1, CompleteFileName)
+end
+
+function clang_CompilationDatabase_getAllCompileCommands(arg1)
+    ccall((:clang_CompilationDatabase_getAllCompileCommands, libclang), CXCompileCommands, (CXCompilationDatabase,), arg1)
+end
+
+function clang_CompileCommands_dispose(arg1)
+    ccall((:clang_CompileCommands_dispose, libclang), Cvoid, (CXCompileCommands,), arg1)
+end
+
+function clang_CompileCommands_getSize(arg1)
+    ccall((:clang_CompileCommands_getSize, libclang), Cuint, (CXCompileCommands,), arg1)
+end
+
+function clang_CompileCommands_getCommand(arg1, I)
+    ccall((:clang_CompileCommands_getCommand, libclang), CXCompileCommand, (CXCompileCommands, Cuint), arg1, I)
+end
+
+function clang_CompileCommand_getDirectory(arg1)
+    ccall((:clang_CompileCommand_getDirectory, libclang), CXString, (CXCompileCommand,), arg1)
+end
+
+function clang_CompileCommand_getFilename(arg1)
+    ccall((:clang_CompileCommand_getFilename, libclang), CXString, (CXCompileCommand,), arg1)
+end
+
+function clang_CompileCommand_getNumArgs(arg1)
+    ccall((:clang_CompileCommand_getNumArgs, libclang), Cuint, (CXCompileCommand,), arg1)
+end
+
+function clang_CompileCommand_getArg(arg1, I)
+    ccall((:clang_CompileCommand_getArg, libclang), CXString, (CXCompileCommand, Cuint), arg1, I)
+end
+
+function clang_CompileCommand_getNumMappedSources(arg1)
+    ccall((:clang_CompileCommand_getNumMappedSources, libclang), Cuint, (CXCompileCommand,), arg1)
+end
+
+function clang_CompileCommand_getMappedSourcePath(arg1, I)
+    ccall((:clang_CompileCommand_getMappedSourcePath, libclang), CXString, (CXCompileCommand, Cuint), arg1, I)
+end
+
+function clang_CompileCommand_getMappedSourceContent(arg1, I)
+    ccall((:clang_CompileCommand_getMappedSourceContent, libclang), CXString, (CXCompileCommand, Cuint), arg1, I)
+end
+
+const CXRewriter = Ptr{Cvoid}
+
+function clang_CXRewriter_create(TU)
+    ccall((:clang_CXRewriter_create, libclang), CXRewriter, (CXTranslationUnit,), TU)
+end
+
+function clang_CXRewriter_insertTextBefore(Rew, Loc, Insert)
+    ccall((:clang_CXRewriter_insertTextBefore, libclang), Cvoid, (CXRewriter, CXSourceLocation, Ptr{Cchar}), Rew, Loc, Insert)
+end
+
+function clang_CXRewriter_replaceText(Rew, ToBeReplaced, Replacement)
+    ccall((:clang_CXRewriter_replaceText, libclang), Cvoid, (CXRewriter, CXSourceRange, Ptr{Cchar}), Rew, ToBeReplaced, Replacement)
+end
+
+function clang_CXRewriter_removeText(Rew, ToBeRemoved)
+    ccall((:clang_CXRewriter_removeText, libclang), Cvoid, (CXRewriter, CXSourceRange), Rew, ToBeRemoved)
+end
+
+function clang_CXRewriter_overwriteChangedFiles(Rew)
+    ccall((:clang_CXRewriter_overwriteChangedFiles, libclang), Cint, (CXRewriter,), Rew)
+end
+
+function clang_CXRewriter_writeMainFileToStdOut(Rew)
+    ccall((:clang_CXRewriter_writeMainFileToStdOut, libclang), Cvoid, (CXRewriter,), Rew)
+end
+
+function clang_CXRewriter_dispose(Rew)
+    ccall((:clang_CXRewriter_dispose, libclang), Cvoid, (CXRewriter,), Rew)
+end
+
 const CINDEX_VERSION_MAJOR = 0
 
 const CINDEX_VERSION_MINOR = 61
-
-CINDEX_VERSION_ENCODE(major, minor) = major * 10000 + minor * 1
 
